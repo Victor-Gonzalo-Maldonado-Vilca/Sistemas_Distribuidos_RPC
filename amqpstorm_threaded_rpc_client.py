@@ -1,9 +1,3 @@
-"""
-Servidor Flask - Cliente RPC Asíncrono
-Desplegar como "Web Service" en Render.
-"""
-__author__ = 'eandersson (modificado)'
-
 import threading
 import os
 from time import sleep

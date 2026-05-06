@@ -1,8 +1,3 @@
-"""
-Worker RPC - Consumidor de mensajes
-Desplegar como "Background Worker" en Render.
-"""
- 
 import amqpstorm
 import threading
 import http.server
@@ -10,7 +5,6 @@ import socketserver
 import os
 import sys
  
-# Forzar logs inmediatos en Render
 sys.stdout.reconfigure(line_buffering=True)
  
 # ── URL de CloudAMQP ────────────────────────────────────────────────────────
