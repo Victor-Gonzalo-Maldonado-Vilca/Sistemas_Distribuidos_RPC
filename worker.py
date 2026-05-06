@@ -3,9 +3,11 @@ import threading
 import http.server
 import socketserver
 import os
+import sys
+
+sys.stdout.reconfigure(line_buffering=True)
 
 def run_dummy_server():
-    """Este servidor solo sirve para que Render no apague el proceso."""
     PORT = int(os.environ.get("PORT", 10000))
     handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", PORT), handler) as httpd:
@@ -32,8 +34,11 @@ def procesar_pedido(message):
 
 URL_NUBE = "amqps://vdhlnbov:ogNW_b6xOVvycixvXj2uyAJOpWgCbmkx@chameleon.lmq.cloudamqp.com/vdhlnbov"
 
+print(" [*] Intentando conectar a CloudAMQP...") # Este print te confirmará si arranca
+
 try:
-    connection = amqpstorm.UriConnection(URL_NUBE)
+    # HEARTBEAT activado
+    connection = amqpstorm.UriConnection(URL_NUBE, heartbeat=60)
     channel = connection.channel()
     channel.queue.declare('rpc_queue')
     channel.basic.consume(procesar_pedido, queue='rpc_queue')
