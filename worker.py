@@ -1,4 +1,18 @@
 import amqpstorm
+import threading
+import http.server
+import socketserver
+import os
+
+def run_dummy_server():
+    """Este servidor solo sirve para que Render no apague el proceso."""
+    PORT = int(os.environ.get("PORT", 10000))
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", PORT), handler) as httpd:
+        print(f" [!] Servidor de mantenimiento activo en puerto {PORT}")
+        httpd.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
 
 def procesar_pedido(message):
     payload = message.body
@@ -14,13 +28,18 @@ def procesar_pedido(message):
         properties={'correlation_id': message.properties['correlation_id']}
     )
     message.ack()
+    print(f" [v] Respuesta enviada: {respuesta}")
 
-# USANDO TU URL DE CLOUDAMQP
 URL_NUBE = "amqps://vdhlnbov:ogNW_b6xOVvycixvXj2uyAJOpWgCbmkx@chameleon.lmq.cloudamqp.com/vdhlnbov"
-connection = amqpstorm.UriConnection(URL_NUBE)
-channel = connection.channel()
-channel.queue.declare('rpc_queue')
-channel.basic.consume(procesar_pedido, queue='rpc_queue')
 
-print(" [*] Worker conectado a CloudAMQP. Esperando datos...")
-channel.start_consuming()
+try:
+    connection = amqpstorm.UriConnection(URL_NUBE)
+    channel = connection.channel()
+    channel.queue.declare('rpc_queue')
+    channel.basic.consume(procesar_pedido, queue='rpc_queue')
+
+    print(" [*] Worker conectado a CloudAMQP. Esperando datos...")
+    channel.start_consuming()
+
+except Exception as e:
+    print(f" [!] Error en el Worker: {e}")
