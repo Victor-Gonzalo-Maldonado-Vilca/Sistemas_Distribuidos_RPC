@@ -96,6 +96,11 @@ class RpcClient(object):
         # Return the Unique ID used to identify the request.
         return message.correlation_id
 
+RPC_CLIENT = RpcClient('127.0.0.1', 'guest', 'guest', 'rpc_queue')
+
+@app.route('/')
+def index():
+    return "Servidor RPC Flask encendido. Usa /rpc_call/tu_mensaje"
 
 @app.route('/rpc_call/<payload>')
 def rpc_call(payload):
@@ -104,14 +109,14 @@ def rpc_call(payload):
     # Send the request and store the requests Unique ID.
     corr_id = RPC_CLIENT.send_request(payload)
 
-    # Wait until we have received a response.
-    while RPC_CLIENT.queue[corr_id] is None:
+    intentos = 0
+    while RPC_CLIENT.queue[corr_id] is None and intentos < 100:
         sleep(0.1)
+        intentos += 1
 
-    # Return the response to the user.
-    return RPC_CLIENT.queue[corr_id]
-
+    if RPC_CLIENT.queue[corr_id] is None:
+        return "Error: El Worker no respondió a tiempo (Timeout)", 504
+    return RPC_CLIENT.queue.pop(corr_id)
 
 if __name__ == '__main__':
-    RPC_CLIENT = RpcClient('127.0.0.1', 'guest', 'guest', 'rpc_queue')
     app.run()
