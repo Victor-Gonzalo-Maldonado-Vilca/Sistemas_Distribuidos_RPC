@@ -54,7 +54,7 @@ print(" [*] Intentando conectar a CloudAMQP...")
 
 try:
     # Conexión estándar sin parámetros extraños para evitar errores de argumentos
-    connection = amqpstorm.UriConnection(URL_NUBE)
+    connection = amqpstorm.UriConnection(URL_NUBE, heartbeat=60)
     channel = connection.channel()
     
     # Declaramos la cola por si no existe
