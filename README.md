@@ -10,7 +10,7 @@
 | **Docente** | Jesús Martín Silva Fernández |
 | **Curso** | Sistemas Distribuidos |
 | **Escuela** | Ingeniería de Sistemas |
-| **Fecha** | 04 - 05 - 2026 |
+| **Fecha** | 06 - 05 - 2026 |
 
 </div>
 
