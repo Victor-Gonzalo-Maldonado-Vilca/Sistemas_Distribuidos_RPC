@@ -5,6 +5,7 @@ import socketserver
 import os
 import sys
 
+# 1. FORZAR LOGS: Esto hace que los print aparezcan en Render de inmediato
 sys.stdout.reconfigure(line_buffering=True)
 
 def run_dummy_server():
@@ -54,7 +55,7 @@ print(" [*] Intentando conectar a CloudAMQP...")
 
 try:
     # Conexión estándar sin parámetros extraños para evitar errores de argumentos
-    connection = amqpstorm.UriConnection(URL_NUBE, heartbeat=60)
+    connection = amqpstorm.UriConnection(URL_NUBE)
     channel = connection.channel()
     
     # Declaramos la cola por si no existe
