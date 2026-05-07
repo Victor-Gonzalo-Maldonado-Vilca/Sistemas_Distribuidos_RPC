@@ -799,7 +799,7 @@ def _render_respuesta(payload, respuesta_raw, error=None):
 </head>
 <body>
 <header>
-  <p class="institution">Laboratorio de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
+  <p class="institution">Practica de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
   <h1>Respuesta <span>RPC</span></h1>
   <p class="sub">Resultado de la invocación remota sobre cola AMQP</p>
   <div class="badge-row">
