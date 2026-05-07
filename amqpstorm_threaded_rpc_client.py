@@ -83,7 +83,7 @@ def index():
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sistema RPC Distribuido — Laboratorio de SD</title>
+  <title>Sistema RPC Distribuido — Practica de SD</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -416,7 +416,7 @@ def index():
 <body>
 
 <header>
-  <p class="institution">Laboratorio de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
+  <p class="institution">Practica de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
   <h1>Sistema <span>RPC</span> sobre RabbitMQ</h1>
   <p class="subtitle">Demostración de llamada a procedimiento remoto mediante cola de mensajes asíncronos</p>
   <div class="badge-row">
@@ -463,7 +463,7 @@ def index():
         id="payload-input"
         type="text"
         placeholder="Ingrese el mensaje a enviar al Worker…"
-        value="Hola_Desde_Laboratorio"
+        value="Hola_Desde_Sistemas_Distribuidos"
         autocomplete="off"
       />
       <button id="send-btn" onclick="sendRpc()">Enviar →</button>
