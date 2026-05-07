@@ -606,6 +606,23 @@ def index():
     </table>
   </div>
 
+  <div class="terminal-browser">
+    <div class="terminal-header">
+      <div class="terminal-controls">
+        <div class="dot red"></div>
+        <div class="dot yellow"></div>
+        <div class="dot green"></div>
+      </div>
+      <div class="terminal-title">LIVE_BROWSER_OUTPUT.SYS</div>
+      <div class="terminal-status" id="iframe-status">Esperando petición...</div>
+    </div>
+    <div class="terminal-body">
+      <iframe id="preview-iframe" name="preview-iframe" src="about:blank"></iframe>
+      <div id="iframe-placeholder">
+        <p>La respuesta del servidor se renderizará aquí al hacer click en la URL o al enviar la petición.</p>
+      </div>
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -698,23 +715,6 @@ def index():
     }
   }
 </script>
-<div class="terminal-browser">
-  <div class="terminal-header">
-    <div class="terminal-controls">
-      <div class="dot red"></div>
-      <div class="dot yellow"></div>
-      <div class="dot green"></div>
-    </div>
-    <div class="terminal-title">LIVE_BROWSER_OUTPUT.SYS</div>
-    <div class="terminal-status" id="iframe-status">Esperando petición...</div>
-  </div>
-  <div class="terminal-body">
-    <iframe id="preview-iframe" name="preview-iframe" src="about:blank"></iframe>
-    <div id="iframe-placeholder">
-       <p>La respuesta del servidor se renderizará aquí al hacer click en la URL o al enviar la petición.</p>
-    </div>
-  </div>
-</div>
 </body>
 </html>"""
     return html
