@@ -2,7 +2,7 @@ import threading
 import os
 from time import sleep
 
-from flask import Flask
+from flask import Flask, jsonify
 import amqpstorm
 from amqpstorm import Message
 
@@ -25,59 +25,43 @@ class RpcClient(object):
         self.open()
 
     def open(self):
-        """Abre la conexión a CloudAMQP."""
         print("[Flask-RPC] Conectando a CloudAMQP...")
         self.connection = amqpstorm.UriConnection(URL_NUBE)
         self.channel = self.connection.channel()
-
-        # Declarar la cola principal
         self.channel.queue.declare(self.rpc_queue)
-
-        # Cola de respuestas exclusiva (se elimina al desconectarse)
         result = self.channel.queue.declare(exclusive=True)
         self.callback_queue = result['queue']
-
-        # Consumir respuestas en esta cola
         self.channel.basic.consume(
             self._on_response,
             no_ack=True,
             queue=self.callback_queue
         )
-
         self._create_process_thread()
         print(f"[Flask-RPC] Conectado. Cola de respuestas: {self.callback_queue}")
 
     def _create_process_thread(self):
-        """Hilo dedicado a procesar eventos de respuesta."""
         thread = threading.Thread(target=self._process_data_events)
         thread.daemon = True
         thread.start()
 
     def _process_data_events(self):
-        """Consume mensajes de la cola de respuestas de forma continua."""
         self.channel.start_consuming(to_tuple=False)
 
     def _on_response(self, message):
-        """Guarda la respuesta en el diccionario usando el correlation_id."""
         with self._lock:
             self.queue[message.correlation_id] = message.body
 
     def send_request(self, payload):
-        """Envía un mensaje RPC y retorna el correlation_id."""
         message = Message.create(self.channel, payload)
         message.reply_to = self.callback_queue
-
         with self._lock:
             self.queue[message.correlation_id] = None
-
         message.publish(routing_key=self.rpc_queue)
         print(f"[Flask-RPC] Mensaje enviado. corr_id={message.correlation_id}")
         return message.correlation_id
 
 
 # ── Inicialización LAZY del cliente RPC ────────────────────────────────────
-# Se inicializa al primer request, no al arrancar el proceso.
-# Esto evita errores de conexión durante el arranque en Render.
 _rpc_client = None
 _rpc_lock = threading.Lock()
 
@@ -94,10 +78,511 @@ def get_rpc_client():
 
 @app.route('/')
 def index():
-    return (
-        "<h2>Servidor RPC Flask activo ✅</h2>"
-        "<p>Usa <code>/rpc_call/tu_mensaje</code> para enviar una solicitud.</p>"
-    )
+    html = """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sistema RPC Distribuido — Laboratorio de SD</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #13161e;
+      --border:   #1e2330;
+      --accent:   #4f8ef7;
+      --accent2:  #7dd3a8;
+      --danger:   #e06c75;
+      --text:     #cdd6f4;
+      --muted:    #6c7086;
+      --mono:     'IBM Plex Mono', monospace;
+      --serif:    'Libre Baskerville', Georgia, serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--serif);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    /* subtle grid overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(79,142,247,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,142,247,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    header {
+      width: 100%;
+      max-width: 860px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .institution {
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .18em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: .6rem;
+    }
+
+    h1 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -.01em;
+      color: #e6eaf7;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: .5rem;
+      font-size: .9rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .08em;
+      padding: .25rem .65rem;
+      border-radius: 3px;
+      border: 1px solid;
+    }
+
+    .badge-green  { color: var(--accent2); border-color: var(--accent2); background: rgba(125,211,168,.06); }
+    .badge-blue   { color: var(--accent);  border-color: var(--accent);  background: rgba(79,142,247,.06);  }
+    .badge-muted  { color: var(--muted);   border-color: var(--border);  background: transparent; }
+
+    main { width: 100%; max-width: 860px; }
+
+    /* ─── Card ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.75rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .16em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ─── Input area ─── */
+    .input-row {
+      display: flex;
+      gap: .75rem;
+      align-items: stretch;
+    }
+
+    #payload-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .9rem;
+      padding: .75rem 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    #payload-input:focus {
+      border-color: var(--accent);
+    }
+
+    #send-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: var(--mono);
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      padding: .75rem 1.4rem;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      white-space: nowrap;
+    }
+
+    #send-btn:hover  { opacity: .85; }
+    #send-btn:active { transform: scale(.97); }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .hint {
+      margin-top: .75rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+    }
+
+    .hint code {
+      color: var(--accent2);
+    }
+
+    /* ─── URL preview ─── */
+    #url-preview {
+      margin-top: .9rem;
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+
+    #url-preview span { color: var(--accent); }
+
+    /* ─── Response panel ─── */
+    #response-panel { display: none; }
+
+    .resp-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+
+    .resp-status {
+      font-family: var(--mono);
+      font-size: .78rem;
+      padding: .22rem .7rem;
+      border-radius: 3px;
+      border: 1px solid;
+    }
+
+    .resp-status.ok      { color: var(--accent2); border-color: var(--accent2); background: rgba(125,211,168,.08); }
+    .resp-status.error   { color: var(--danger);  border-color: var(--danger);  background: rgba(224,108,117,.08); }
+    .resp-status.pending { color: var(--accent);  border-color: var(--accent);  background: rgba(79,142,247,.08); }
+
+    .resp-time {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--muted);
+    }
+
+    #response-body {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.1rem 1.2rem;
+      font-family: var(--mono);
+      font-size: .88rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 60px;
+      line-height: 1.6;
+    }
+
+    /* ─── Architecture diagram ─── */
+    .arch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: .5rem 0;
+    }
+
+    .arch-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .arch-box {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .55rem 1.1rem;
+      font-family: var(--mono);
+      font-size: .73rem;
+      background: var(--bg);
+      color: var(--accent);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .arch-label {
+      font-family: var(--mono);
+      font-size: .62rem;
+      color: var(--muted);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .arch-arrow {
+      font-size: 1.1rem;
+      color: var(--muted);
+      padding: 0 .4rem;
+      margin-bottom: 1.2rem;
+    }
+
+    /* ─── Endpoint table ─── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: .8rem;
+    }
+
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 400;
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: .08em;
+    }
+
+    td {
+      padding: .6rem .75rem;
+      border-bottom: 1px solid rgba(30,35,48,.6);
+      vertical-align: top;
+    }
+
+    td:first-child { color: var(--accent2); }
+    td:last-child  { color: var(--muted); }
+
+    /* ─── Footer ─── */
+    footer {
+      margin-top: 3rem;
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: .06em;
+    }
+
+    /* ─── Spinner ─── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid rgba(79,142,247,.25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <p class="institution">Laboratorio de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
+  <h1>Sistema <span>RPC</span> sobre RabbitMQ</h1>
+  <p class="subtitle">Demostración de llamada a procedimiento remoto mediante cola de mensajes asíncronos</p>
+  <div class="badge-row">
+    <span class="badge badge-green">● Servicio activo</span>
+    <span class="badge badge-blue">CloudAMQP · AMQPS</span>
+    <span class="badge badge-muted">Flask · AMQPStorm</span>
+    <span class="badge badge-muted">Patrón: RPC sobre MQ</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ─── Diagrama de arquitectura ─── -->
+  <div class="card">
+    <p class="card-title">Arquitectura del sistema</p>
+    <div class="arch">
+      <div class="arch-node">
+        <div class="arch-box">Cliente HTTP<br/>(Navegador / curl)</div>
+        <div class="arch-label">Iniciador</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node">
+        <div class="arch-box">Flask<br/>RPC Client</div>
+        <div class="arch-label">Servidor Web</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node">
+        <div class="arch-box">CloudAMQP<br/>rpc_queue</div>
+        <div class="arch-label">Broker AMQP</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node">
+        <div class="arch-box">Worker<br/>RPC</div>
+        <div class="arch-label">Consumidor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Consola de prueba ─── -->
+  <div class="card">
+    <p class="card-title">Consola de invocación RPC</p>
+    <div class="input-row">
+      <input
+        id="payload-input"
+        type="text"
+        placeholder="Ingrese el mensaje a enviar al Worker…"
+        value="Hola_Desde_Laboratorio"
+        autocomplete="off"
+      />
+      <button id="send-btn" onclick="sendRpc()">Enviar →</button>
+    </div>
+    <p class="hint">
+      Endpoint: <code>/rpc_call/{payload}</code> &mdash;
+      el Worker procesará el mensaje y retornará la respuesta vía cola de retorno.
+    </p>
+    <p id="url-preview"></p>
+  </div>
+
+  <!-- ─── Panel de respuesta ─── -->
+  <div class="card" id="response-panel">
+    <p class="card-title">Respuesta del Worker</p>
+    <div class="resp-meta">
+      <span class="resp-status pending" id="resp-status">Procesando…</span>
+      <span class="resp-time" id="resp-time"></span>
+    </div>
+    <div id="response-body"></div>
+  </div>
+
+  <!-- ─── Tabla de endpoints ─── -->
+  <div class="card">
+    <p class="card-title">Endpoints disponibles</p>
+    <table>
+      <thead>
+        <tr>
+          <th>MÉTODO</th>
+          <th>RUTA</th>
+          <th>DESCRIPCIÓN</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>GET</td>
+          <td>/</td>
+          <td>Panel de documentación y consola de prueba</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/rpc_call/{payload}</td>
+          <td>Publica el mensaje en la cola RPC y retorna la respuesta del Worker</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  SISTEMAS DISTRIBUIDOS &nbsp;·&nbsp; ARQUITECTURAS DE MENSAJERÍA &nbsp;·&nbsp;
+  PATRÓN RPC SOBRE AMQP
+</footer>
+
+<script>
+  const input = document.getElementById('payload-input');
+  const preview = document.getElementById('url-preview');
+
+  function updatePreview() {
+    const val = input.value.trim() || '{payload}';
+    const origin = window.location.origin;
+    preview.innerHTML = `URL generada: <span>${origin}/rpc_call/${encodeURIComponent(val)}</span>`;
+  }
+
+  input.addEventListener('input', updatePreview);
+  updatePreview();
+
+  // Enter key
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendRpc(); });
+
+  async function sendRpc() {
+    const payload = input.value.trim();
+    if (!payload) { input.focus(); return; }
+
+    const btn  = document.getElementById('send-btn');
+    const panel = document.getElementById('response-panel');
+    const statusEl = document.getElementById('resp-status');
+    const timeEl   = document.getElementById('resp-time');
+    const bodyEl   = document.getElementById('response-body');
+
+    btn.disabled = true;
+    panel.style.display = 'block';
+    statusEl.className  = 'resp-status pending';
+    statusEl.innerHTML  = '<span class="spinner"></span>Procesando solicitud RPC…';
+    timeEl.textContent  = '';
+    bodyEl.textContent  = '';
+
+    const t0 = performance.now();
+    try {
+      const resp = await fetch(`/rpc_call/${encodeURIComponent(payload)}`);
+      const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+      const text = await resp.text();
+
+      if (resp.ok) {
+        statusEl.className = 'resp-status ok';
+        statusEl.textContent = `HTTP ${resp.status} — OK`;
+      } else {
+        statusEl.className = 'resp-status error';
+        statusEl.textContent = `HTTP ${resp.status} — Error`;
+      }
+
+      timeEl.textContent = `Tiempo de respuesta: ${elapsed} s`;
+      bodyEl.textContent = text;
+
+    } catch (err) {
+      const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+      statusEl.className = 'resp-status error';
+      statusEl.textContent = 'Error de red';
+      timeEl.textContent = `Tiempo transcurrido: ${elapsed} s`;
+      bodyEl.textContent = err.toString();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>"""
+    return html
+
 
 @app.route('/rpc_call/<payload>')
 def rpc_call(payload):
@@ -112,7 +597,6 @@ def rpc_call(payload):
 
     corr_id = client.send_request(payload)
 
-    # Esperar hasta 30 segundos (300 × 0.1 s)
     intentos = 0
     MAX_INTENTOS = 300
     while True:
@@ -124,7 +608,7 @@ def rpc_call(payload):
             print(f"[Flask-RPC] TIMEOUT para corr_id={corr_id}")
             with client._lock:
                 client.queue.pop(corr_id, None)
-            return "Error: El Worker no respondió a tiempo (Timeout)", 504
+            return "Error: El Worker no respondió dentro del tiempo límite establecido (timeout: 30 s).", 504
         sleep(0.1)
         intentos += 1
 
