@@ -2,7 +2,7 @@ import threading
 import os
 from time import sleep
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, url_for
 import amqpstorm
 from amqpstorm import Message
 
@@ -399,6 +399,30 @@ def index():
       letter-spacing: .06em;
     }
 
+
+    /* ─── Architecture image ─── */
+    .arch-image-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-top: .5rem;
+    }
+
+    .arch-image {
+      width: 100%;
+      max-width: 760px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: .5rem;
+      box-shadow: 0 0 25px rgba(0,0,0,.35);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .arch-image:hover {
+      transform: scale(1.01);
+      box-shadow: 0 0 35px rgba(79,142,247,.18);
+    }
     /* ─── Spinner ─── */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
@@ -430,29 +454,12 @@ def index():
 <main>
 
   <!-- ─── Diagrama de arquitectura ─── -->
-  <div class="card">
-    <p class="card-title">Arquitectura del sistema</p>
-    <div class="arch">
-      <div class="arch-node">
-        <div class="arch-box">Cliente HTTP<br/>(Navegador / curl)</div>
-        <div class="arch-label">Iniciador</div>
-      </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node">
-        <div class="arch-box">Flask<br/>RPC Client</div>
-        <div class="arch-label">Servidor Web</div>
-      </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node">
-        <div class="arch-box">CloudAMQP<br/>rpc_queue</div>
-        <div class="arch-label">Broker AMQP</div>
-      </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node">
-        <div class="arch-box">Worker<br/>RPC</div>
-        <div class="arch-label">Consumidor</div>
-      </div>
-    </div>
+  <div class="arch-image-container">
+    <img
+      src="/static/images/arquitectura.png"
+      alt="Arquitectura RPC Distribuida"
+      class="arch-image"
+    />
   </div>
 
   <!-- ─── Consola de prueba ─── -->
