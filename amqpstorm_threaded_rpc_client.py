@@ -357,60 +357,59 @@ def index():
 
     
     /* ─── Architecture image ─── */
+    /* Contenedor padre para agrupar header e imagen */
     .arch-image-container {
-      width: 100%;
       display: flex;
-      justify-content: center;
-      margin-top: .5rem;
-    }
-    .arch-image-header {
+      flex-direction: column;
       width: 100%;
-      font-family: var(--mono);
-      font-size: .72rem;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--accent);
-      text-align: left; /* Alineado a la izquierda para look técnico */
-      
-      padding: .6rem 1.2rem;
+      max-width: 800px;
+      margin: 2rem auto;
       border: 1px solid var(--border);
-      border-bottom: none; /* Se une visualmente a la imagen */
-      border-radius: 6px 6px 0 0;
+      border-radius: 8px;
+      overflow: hidden; /* Esto hace que las esquinas se corten limpiamente */
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .arch-image-header {
+      background: linear-gradient(90deg, rgba(79,142,247,0.15), transparent);
+      padding: .8rem 1.2rem;
+      border-bottom: 1px solid var(--border);
       
-      background: linear-gradient(90deg, rgba(79,142,247,.1) 0%, transparent 100%);
+      /* Texto estilo HUD */
+      font-family: var(--mono);
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      
       display: flex;
       align-items: center;
-      gap: 0.8rem;
+      gap: 10px;
     }
+
+    /* Indicador de estado "Live" */
     .arch-image-header::before {
       content: '';
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       background: var(--accent);
       border-radius: 50%;
       box-shadow: 0 0 8px var(--accent);
-      animation: pulse 2s infinite;
     }
 
+    .arch-image {
+      width: 100%;
+      height: auto;
+      display: block; 
+      border: none; 
+      background: #fff;
+      filter: grayscale(10%) contrast(105%); 
+    }
     @keyframes pulse {
       0% { opacity: 1; }
       50% { opacity: 0.4; }
       100% { opacity: 1; }
-    }
-    .arch-image {
-      width: 100%;
-      max-width: 760px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      padding: .5rem;
-      box-shadow: 0 0 25px rgba(0,0,0,.35);
-      transition: transform .2s ease, box-shadow .2s ease;
-    }
-
-    .arch-image:hover {
-      transform: scale(1.01);
-      box-shadow: 0 0 35px rgba(79,142,247,.18);
     }
     /* ─── Spinner ─── */
     @keyframes spin { to { transform: rotate(360deg); } }
