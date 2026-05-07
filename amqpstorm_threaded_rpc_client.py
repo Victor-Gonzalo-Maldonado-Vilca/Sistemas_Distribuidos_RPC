@@ -523,7 +523,8 @@ def index():
   function updatePreview() {
     const val = input.value.trim() || '{payload}';
     const origin = window.location.origin;
-    preview.innerHTML = `URL generada: <span>${origin}/rpc_call/${encodeURIComponent(val)}</span>`;
+    const fullUrl = `${origin}/rpc_call/${encodeURIComponent(val)}`;
+    preview.innerHTML = `URL generada: <a href="${fullUrl}" target="_blank" style="color: var(--accent); text-decoration: underline;">${fullUrl}</a>`;
   }
 
   input.addEventListener('input', updatePreview);
