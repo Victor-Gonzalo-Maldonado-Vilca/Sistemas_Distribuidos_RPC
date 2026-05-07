@@ -319,50 +319,6 @@ def index():
       line-height: 1.6;
     }
 
-    /* ─── Architecture diagram ─── */
-    .arch {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      flex-wrap: wrap;
-      margin: .5rem 0;
-    }
-
-    .arch-node {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: .35rem;
-    }
-
-    .arch-box {
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: .55rem 1.1rem;
-      font-family: var(--mono);
-      font-size: .73rem;
-      background: var(--bg);
-      color: var(--accent);
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    .arch-label {
-      font-family: var(--mono);
-      font-size: .62rem;
-      color: var(--muted);
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .arch-arrow {
-      font-size: 1.1rem;
-      color: var(--muted);
-      padding: 0 .4rem;
-      margin-bottom: 1.2rem;
-    }
-
     /* ─── Endpoint table ─── */
     table {
       width: 100%;
@@ -399,21 +355,7 @@ def index():
       letter-spacing: .06em;
     }
 
-    .arch-image-header {
-      width: 100%;
-      font-family: var(--mono);
-      font-size: .72rem;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--accent);
-      text-align: center;
-      margin-bottom: .9rem;
-      padding: .5rem .8rem;
-      border: 1px solid rgba(79,142,247,.35);
-      border-radius: 4px;
-      background: rgba(79,142,247,.06);
-      box-shadow: 0 0 12px rgba(79,142,247,.08);
-    }
+    
     /* ─── Architecture image ─── */
     .arch-image-container {
       width: 100%;
@@ -421,7 +363,40 @@ def index():
       justify-content: center;
       margin-top: .5rem;
     }
+    .arch-image-header {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: left; /* Alineado a la izquierda para look técnico */
+      
+      padding: .6rem 1.2rem;
+      border: 1px solid var(--border);
+      border-bottom: none; /* Se une visualmente a la imagen */
+      border-radius: 6px 6px 0 0;
+      
+      background: linear-gradient(90deg, rgba(79,142,247,.1) 0%, transparent 100%);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .arch-image-header::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
 
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
     .arch-image {
       width: 100%;
       max-width: 760px;
