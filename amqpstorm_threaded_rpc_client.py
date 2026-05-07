@@ -411,6 +411,92 @@ def index():
       50% { opacity: 0.4; }
       100% { opacity: 1; }
     }
+
+    .terminal-browser {
+      width: 100%;
+      max-width: 860px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .terminal-header {
+      background: #1e2330;
+      padding: .7rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-title {
+      font-family: var(--mono);
+      font-size: .65rem;
+      color: var(--muted);
+      flex-grow: 1;
+      text-align: center;
+    }
+
+    .terminal-status {
+      font-family: var(--mono);
+      font-size: .6rem;
+      color: var(--accent2);
+      text-transform: uppercase;
+    }
+
+    .terminal-body {
+      height: 500px;
+      background: #0d0f14;
+      position: relative;
+    }
+
+    .target-selector {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1.5rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      align-items: center;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .radio-label:hover { color: var(--accent); }
+
+    .radio-label input[type="radio"] {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    #preview-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none; /* Se muestra solo cuando hay contenido */
+    }
+
+    #iframe-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: .9rem;
+    }
     /* ─── Spinner ─── */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
@@ -465,6 +551,17 @@ def index():
         autocomplete="off"
       />
       <button id="send-btn" onclick="sendRpc()">Enviar →</button>
+    </div>
+    <div class="target-selector">
+      <label>Destino de respuesta:</label>
+      <label class="radio-label">
+        <input type="radio" name="target-choice" value="preview-iframe" checked onchange="updatePreview()"> 
+        <span>Monitor Interno</span>
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="target-choice" value="_blank" onchange="updatePreview()"> 
+        <span>Nueva Pestaña</span>
+      </label>
     </div>
     <p class="hint">
       Endpoint: <code>/rpc_call/{payload}</code> &mdash;
@@ -524,8 +621,31 @@ def index():
     const val = input.value.trim() || '{payload}';
     const origin = window.location.origin;
     const fullUrl = `${origin}/rpc_call/${encodeURIComponent(val)}`;
-    preview.innerHTML = `URL generada: <a href="${fullUrl}" target="_blank" style="color: var(--accent); text-decoration: underline;">${fullUrl}</a>`;
+    const selectedTarget = document.querySelector('input[name="target-choice"]:checked').value;
+    const onclickAction = selectedTarget === 'preview-iframe' ? 'onclick="showIframe()"' : '';
+    preview.innerHTML = `URL generada: 
+      <a href="${fullUrl}" 
+        target="${selectedTarget}" 
+        ${onclickAction} 
+        style="color: var(--accent); text-decoration: underline;">
+        ${fullUrl}
+      </a>`;
   }
+  function showIframe() {
+    const iframe = document.getElementById('preview-iframe');
+    const placeholder = document.getElementById('iframe-placeholder');
+    const status = document.getElementById('iframe-status');
+      
+    placeholder.style.display = 'none';
+    iframe.style.display = 'block';
+    status.textContent = "Cargando Respuesta...";
+      
+    // Cuando el iframe termina de cargar
+    iframe.onload = function() {
+      status.textContent = "Renderizado OK";
+    };
+  }
+  
 
   input.addEventListener('input', updatePreview);
   updatePreview();
@@ -578,6 +698,23 @@ def index():
     }
   }
 </script>
+<div class="terminal-browser">
+  <div class="terminal-header">
+    <div class="terminal-controls">
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+    </div>
+    <div class="terminal-title">LIVE_BROWSER_OUTPUT.SYS</div>
+    <div class="terminal-status" id="iframe-status">Esperando petición...</div>
+  </div>
+  <div class="terminal-body">
+    <iframe id="preview-iframe" name="preview-iframe" src="about:blank"></iframe>
+    <div id="iframe-placeholder">
+       <p>La respuesta del servidor se renderizará aquí al hacer click en la URL o al enviar la petición.</p>
+    </div>
+  </div>
+</div>
 </body>
 </html>"""
     return html
