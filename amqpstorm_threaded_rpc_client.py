@@ -593,7 +593,7 @@ def rpc_call(payload):
         client = get_rpc_client()
     except Exception as e:
         print(f"[Flask-RPC] Error al conectar RPC Client: {e}")
-        return f"Error de conexión con RabbitMQ: {e}", 503
+        return _render_respuesta(payload, None, error=str(e)), 503
 
     corr_id = client.send_request(payload)
 
@@ -608,7 +608,7 @@ def rpc_call(payload):
             print(f"[Flask-RPC] TIMEOUT para corr_id={corr_id}")
             with client._lock:
                 client.queue.pop(corr_id, None)
-            return "Error: El Worker no respondió dentro del tiempo límite establecido (timeout: 30 s).", 504
+            return _render_respuesta(payload, None, error="Timeout: el Worker no respondió en 30 s."), 504
         sleep(0.1)
         intentos += 1
 
@@ -616,7 +616,213 @@ def rpc_call(payload):
         respuesta = client.queue.pop(corr_id)
 
     print(f"[Flask-RPC] Respuesta recibida: {respuesta}")
-    return respuesta
+    return _render_respuesta(payload, respuesta)
+
+
+def _render_respuesta(payload, respuesta_raw, error=None):
+    """Genera una página HTML estilizada con el resultado de la llamada RPC."""
+    from datetime import datetime, timezone
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    if error:
+        estado_badge = '<span class="badge badge-error">● ERROR</span>'
+        cuerpo_html  = f'<p class="field-val error-text">{error}</p>'
+    else:
+        # Parsear campos del texto devuelto por el worker
+        lines = respuesta_raw if isinstance(respuesta_raw, str) else respuesta_raw.decode('utf-8')
+        estado_badge = '<span class="badge badge-ok">● OK</span>'
+
+        def extraer(label, texto):
+            for line in texto.splitlines():
+                if label in line:
+                    return line.split(':', 1)[-1].strip()
+            return '—'
+
+        resultado   = extraer('Resultado proceso', lines)
+        nodo        = extraer('Nodo Worker',       lines)
+        cola        = extraer('Cola origen',       lines)
+        ts_worker   = extraer('Timestamp',         lines)
+        descripcion = extraer('Descripción',       lines)
+
+        cuerpo_html = f"""
+        <div class="fields">
+          <div class="field-row">
+            <span class="field-key">Mensaje enviado</span>
+            <span class="field-val">{payload}</span>
+          </div>
+          <div class="field-row highlight">
+            <span class="field-key">Resultado procesado</span>
+            <span class="field-val accent">{resultado}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-key">Nodo Worker</span>
+            <span class="field-val">{nodo}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-key">Cola AMQP</span>
+            <span class="field-val">{cola}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-key">Timestamp Worker</span>
+            <span class="field-val">{ts_worker}</span>
+          </div>
+          <div class="field-row">
+            <span class="field-key">Timestamp Cliente</span>
+            <span class="field-val">{timestamp}</span>
+          </div>
+        </div>
+        <div class="desc-box">
+          <p class="desc-label">DESCRIPCIÓN DEL PROCESO</p>
+          <p class="desc-text">El cliente Flask publicó el payload <code>{payload}</code> en la cola
+          <code>rpc_queue</code> de CloudAMQP. El Worker consumió el mensaje, aplicó la transformación
+          definida y retornó la respuesta mediante la cola de retorno exclusiva del cliente
+          (<code>reply_to</code>), usando el <code>correlation_id</code> para correlacionar la respuesta.</p>
+        </div>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Respuesta RPC — {payload}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    :root {{
+      --bg:      #0d0f14;
+      --surface: #13161e;
+      --border:  #1e2330;
+      --accent:  #4f8ef7;
+      --accent2: #7dd3a8;
+      --danger:  #e06c75;
+      --text:    #cdd6f4;
+      --muted:   #6c7086;
+      --mono:    'IBM Plex Mono', monospace;
+      --serif:   'Libre Baskerville', Georgia, serif;
+    }}
+    body {{
+      background: var(--bg); color: var(--text);
+      font-family: var(--serif);
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 3rem 1.5rem 5rem;
+    }}
+    body::before {{
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(79,142,247,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,142,247,.04) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none;
+    }}
+    header {{
+      width: 100%; max-width: 760px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.4rem; margin-bottom: 2rem;
+    }}
+    .institution {{
+      font-family: var(--mono); font-size: .7rem;
+      letter-spacing: .18em; color: var(--muted);
+      text-transform: uppercase; margin-bottom: .5rem;
+    }}
+    h1 {{ font-size: 1.5rem; font-weight: 700; color: #e6eaf7; }}
+    h1 span {{ color: var(--accent); }}
+    .sub {{ margin-top: .4rem; font-size: .85rem; color: var(--muted); font-style: italic; }}
+    .badge-row {{ display: flex; gap: .6rem; margin-top: .9rem; flex-wrap: wrap; }}
+    .badge {{
+      font-family: var(--mono); font-size: .68rem; letter-spacing: .08em;
+      padding: .22rem .65rem; border-radius: 3px; border: 1px solid;
+    }}
+    .badge-ok    {{ color: var(--accent2); border-color: var(--accent2); background: rgba(125,211,168,.07); }}
+    .badge-error {{ color: var(--danger);  border-color: var(--danger);  background: rgba(224,108,117,.07); }}
+    .badge-blue  {{ color: var(--accent);  border-color: var(--accent);  background: rgba(79,142,247,.07); }}
+    .badge-muted {{ color: var(--muted);   border-color: var(--border);  background: transparent; }}
+    main {{ width: 100%; max-width: 760px; }}
+    .card {{
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.6rem 1.8rem; margin-bottom: 1.4rem;
+    }}
+    .card-title {{
+      font-family: var(--mono); font-size: .68rem; letter-spacing: .16em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 1.2rem;
+      display: flex; align-items: center; gap: .5rem;
+    }}
+    .card-title::before {{
+      content: ''; display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--accent);
+    }}
+    .fields {{ display: flex; flex-direction: column; gap: .1rem; }}
+    .field-row {{
+      display: flex; align-items: baseline;
+      padding: .55rem .7rem; border-radius: 4px;
+      gap: 1rem;
+    }}
+    .field-row:nth-child(odd) {{ background: rgba(255,255,255,.02); }}
+    .field-row.highlight {{ background: rgba(79,142,247,.07); border: 1px solid rgba(79,142,247,.15); }}
+    .field-key {{
+      font-family: var(--mono); font-size: .75rem;
+      color: var(--muted); min-width: 180px; flex-shrink: 0;
+    }}
+    .field-val {{
+      font-family: var(--mono); font-size: .85rem; color: var(--text);
+      word-break: break-all;
+    }}
+    .field-val.accent {{ color: var(--accent2); font-weight: 600; font-size: 1rem; }}
+    .field-val.error-text {{ color: var(--danger); }}
+    .desc-box {{
+      margin-top: 1.3rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 1rem 1.2rem;
+    }}
+    .desc-label {{
+      font-family: var(--mono); font-size: .65rem; letter-spacing: .14em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: .6rem;
+    }}
+    .desc-text {{ font-size: .88rem; color: var(--muted); line-height: 1.7; }}
+    .desc-text code {{
+      font-family: var(--mono); font-size: .8rem;
+      color: var(--accent); background: rgba(79,142,247,.08);
+      padding: .1rem .35rem; border-radius: 3px;
+    }}
+    .back-link {{
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-family: var(--mono); font-size: .78rem; color: var(--accent);
+      text-decoration: none; margin-bottom: 1.5rem;
+      opacity: .8; transition: opacity .2s;
+    }}
+    .back-link:hover {{ opacity: 1; }}
+    footer {{
+      margin-top: 3rem; font-family: var(--mono); font-size: .68rem;
+      color: var(--muted); text-align: center; letter-spacing: .06em;
+    }}
+  </style>
+</head>
+<body>
+<header>
+  <p class="institution">Laboratorio de Sistemas Distribuidos &mdash; Arquitecturas de Mensajería</p>
+  <h1>Respuesta <span>RPC</span></h1>
+  <p class="sub">Resultado de la invocación remota sobre cola AMQP</p>
+  <div class="badge-row">
+    {estado_badge}
+    <span class="badge badge-blue">CloudAMQP · AMQPS</span>
+    <span class="badge badge-muted">rpc_queue</span>
+  </div>
+</header>
+
+<main>
+  <a class="back-link" href="/">← Volver al panel</a>
+  <div class="card">
+    <p class="card-title">Resultado de la llamada RPC</p>
+    {cuerpo_html}
+  </div>
+</main>
+
+<footer>
+  SISTEMAS DISTRIBUIDOS &nbsp;·&nbsp; ARQUITECTURAS DE MENSAJERÍA &nbsp;·&nbsp; PATRÓN RPC SOBRE AMQP
+</footer>
+</body>
+</html>"""
+    return html
 
 
 # ── Arranque ────────────────────────────────────────────────────────────────
