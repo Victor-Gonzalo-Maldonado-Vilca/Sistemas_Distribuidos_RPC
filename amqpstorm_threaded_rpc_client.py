@@ -399,7 +399,21 @@ def index():
       letter-spacing: .06em;
     }
 
-
+    .arch-image-header {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: .9rem;
+      padding: .5rem .8rem;
+      border: 1px solid rgba(79,142,247,.35);
+      border-radius: 4px;
+      background: rgba(79,142,247,.06);
+      box-shadow: 0 0 12px rgba(79,142,247,.08);
+    }
     /* ─── Architecture image ─── */
     .arch-image-container {
       width: 100%;
