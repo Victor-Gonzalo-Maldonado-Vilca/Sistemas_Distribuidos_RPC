@@ -455,6 +455,9 @@ def index():
 
   <!-- ─── Diagrama de arquitectura ─── -->
   <div class="arch-image-container">
+    <div class="arch-image-header">
+      FLUJO DE MENSAJERÍA RPC SOBRE AMQP
+    </div>
     <img
       src="/static/images/arquitectura.png"
       alt="Arquitectura RPC Distribuida"
